@@ -371,9 +371,9 @@ export function createMarketHistoryChart (el) {
 function getGradient(ctx, chartArea) {
   const chartWidth = chartArea.right - chartArea.left
   const chartHeight = chartArea.bottom - chartArea.top
-  var gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top)
-  gradient.addColorStop(0, '#E93434')
-  gradient.addColorStop(1, '#861BF5')
+  const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top)
+  gradient.addColorStop(0, '#e7b84a')
+  gradient.addColorStop(1, '#e7814a')
 
   return gradient
 }
