@@ -3,6 +3,7 @@ $primary: #3a6ea7;
 $secondary: #558ac3;
 $tertiary: #3a6ea7;
 $additional-font: #bdbdff;
+$gton-primary: #303042;
 
 // footer
 $footer-background-color: $primary;
@@ -14,8 +15,8 @@ $footer-social-icon-color: #3a6ea7;
 // dashboard
 $dashboard-line-color-price: $secondary;
 $dashboard-line-color-market: $tertiary;
-$dashboard-banner-gradient-start: #7ba4d1;
-$dashboard-banner-gradient-end: #3a6ea7;
+$dashboard-banner-gradient-start: $gton-primary;
+$dashboard-banner-gradient-end: lighten($gton-primary, 5);
 
 $dashboard-banner-chart-legend-label-color: $additional-font;
 $dashboard-stats-item-label-color: $additional-font;
@@ -41,7 +42,9 @@ $btn-contract-color: $tertiary;
 $tile-body-a-color: $tertiary;
 $tile-type-block-color: $tertiary;
 $tile-type-progress-bar-color: $tertiary;
-a.tile-title { color: $tertiary !important; }
+a.tile-title {
+  color: $tertiary !important;
+}
 
 // card
 $card-background-1: $tertiary;
@@ -56,7 +59,7 @@ $card-tab-active: $tertiary;
   .dropdown-item:hover,
   .dropdown-item.active,
   .dropdown-item:focus {
-    background-color: rgba($tertiary, .1) !important;
+    background-color: rgba($tertiary, 0.1) !important;
     color: $tertiary !important;
   }
 
@@ -75,7 +78,7 @@ $card-tab-active: $tertiary;
 
 // Badges
 $badge-neutral-color: $tertiary;
-$badge-neutral-background-color: rgba($tertiary, .1);
+$badge-neutral-background-color: rgba($tertiary, 0.1);
 $api-text-monospace-color: $tertiary;
 
 // Dark theme
