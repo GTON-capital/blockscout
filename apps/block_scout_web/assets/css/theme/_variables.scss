@@ -1,4 +1,4 @@
-@import "base_variables";
+@import 'base_variables';
 // @import "neutral_variables";
 // @import "xusdt_variables";
 // @import "dai_variables";
@@ -21,7 +21,8 @@
 // @import "tomochain_variables";
 // @import "rsk_variables";
 // @import "ethercore_variables";
-@import "optimism_variables";
+// @import "optimism_variables";
+@import 'gton_variables';
 
 // responsive breakpoints
 $breakpoint-xs: 320px;
