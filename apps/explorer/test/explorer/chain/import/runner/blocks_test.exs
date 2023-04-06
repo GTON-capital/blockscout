@@ -128,9 +128,6 @@ defmodule Explorer.Chain.Import.Runner.BlocksTest do
           token_contract_address_hash: token_contract_address_hash
         })
 
-      # Token must exist with non-`nil` `holder_count` for `blocks_update_token_holder_counts` to update
-      update_holder_count!(token_contract_address_hash, 1)
-
       assert count(Address.TokenBalance) == 2
       assert count(Address.CurrentTokenBalance) == 1
 
@@ -157,9 +154,7 @@ defmodule Explorer.Chain.Import.Runner.BlocksTest do
                     token_contract_address_hash: ^token_contract_address_hash,
                     block_number: ^previous_block_number
                   }
-                ],
-                # no updates because it both deletes and derives a holder
-                blocks_update_token_holder_counts: []
+                ]
               }} = run_block_consensus_change(block, true, options)
 
       assert count(Address.TokenBalance) == 1
@@ -174,97 +169,8 @@ defmodule Explorer.Chain.Import.Runner.BlocksTest do
                )
     end
 
-    test "a non-holder reverting to a holder increases the holder_count",
-         %{consensus_block: %{hash: block_hash, miner_hash: miner_hash, number: block_number}, options: options} do
-      token = insert(:token)
-      token_contract_address_hash = token.contract_address_hash
-
-      non_holder_reverts_to_holder(%{
-        current: %{block_number: block_number},
-        token_contract_address_hash: token_contract_address_hash
-      })
-
-      # Token must exist with non-`nil` `holder_count` for `blocks_update_token_holder_counts` to update
-      update_holder_count!(token_contract_address_hash, 0)
-
-      block_params = params_for(:block, hash: block_hash, miner_hash: miner_hash, number: block_number, consensus: true)
-
-      %Ecto.Changeset{valid?: true, changes: block_changes} = Block.changeset(%Block{}, block_params)
-      changes_list = [block_changes]
-
-      assert {:ok,
-              %{
-                blocks_update_token_holder_counts: [
-                  %{
-                    contract_address_hash: ^token_contract_address_hash,
-                    holder_count: 1
-                  }
-                ]
-              }} =
-               Multi.new()
-               |> Blocks.run(changes_list, options)
-               |> Repo.transaction()
-    end
-
-    test "a holder reverting to a non-holder decreases the holder_count",
-         %{consensus_block: %{hash: block_hash, miner_hash: miner_hash, number: block_number}, options: options} do
-      token = insert(:token)
-      token_contract_address_hash = token.contract_address_hash
-
-      holder_reverts_to_non_holder(%{
-        current: %{block_number: block_number},
-        token_contract_address_hash: token_contract_address_hash
-      })
-
-      # Token must exist with non-`nil` `holder_count` for `blocks_update_token_holder_counts` to update
-      update_holder_count!(token_contract_address_hash, 1)
-
-      block_params = params_for(:block, hash: block_hash, miner_hash: miner_hash, number: block_number, consensus: true)
-
-      %Ecto.Changeset{valid?: true, changes: block_changes} = Block.changeset(%Block{}, block_params)
-      changes_list = [block_changes]
-
-      assert {:ok,
-              %{
-                blocks_update_token_holder_counts: [
-                  %{
-                    contract_address_hash: ^token_contract_address_hash,
-                    holder_count: 0
-                  }
-                ]
-              }} =
-               Multi.new()
-               |> Blocks.run(changes_list, options)
-               |> Repo.transaction()
-    end
-
-    test "a non-holder becoming and a holder becoming while a holder becomes a non-holder cancels out and holder_count does not change",
-         %{consensus_block: %{number: block_number} = block, options: options} do
-      token = insert(:token)
-      token_contract_address_hash = token.contract_address_hash
-
-      non_holder_reverts_to_holder(%{
-        current: %{block_number: block_number},
-        token_contract_address_hash: token_contract_address_hash
-      })
-
-      holder_reverts_to_non_holder(%{
-        current: %{block_number: block_number},
-        token_contract_address_hash: token_contract_address_hash
-      })
-
-      # Token must exist with non-`nil` `holder_count` for `blocks_update_token_holder_counts` to update
-      update_holder_count!(token_contract_address_hash, 1)
-
-      assert {:ok,
-              %{
-                # cancels out to no change
-                blocks_update_token_holder_counts: []
-              }} = run_block_consensus_change(block, true, options)
-    end
-
     # Regression test for https://github.com/poanetwork/blockscout/issues/1644
-    test "discards neighbouring blocks if they aren't related to the current one because of reorg and/or import timeout",
+    test "discards neighboring blocks if they aren't related to the current one because of reorg and/or import timeout",
          %{consensus_block: %{number: block_number, hash: block_hash, miner_hash: miner_hash}, options: options} do
       insert(:block, %{number: block_number, hash: block_hash})
       old_block1 = params_for(:block, miner_hash: miner_hash, parent_hash: block_hash, number: block_number + 1)
@@ -330,8 +236,16 @@ defmodule Explorer.Chain.Import.Runner.BlocksTest do
          %{consensus_block: %{number: block_number} = block, options: options} do
       block1 = params_for(:block, consensus: true, miner_hash: insert(:address).hash)
 
-      run_block_consensus_change(block, false, options)
-      run_block_consensus_change(block1, true, options)
+      block2 =
+        params_for(:block,
+          consensus: true,
+          miner_hash: insert(:address).hash,
+          parent_hash: block1.hash,
+          number: block.number + 1
+        )
+
+      insert_block(block, options)
+      insert_block(block2, options)
 
       assert %{from_number: ^block_number, to_number: ^block_number} = Repo.one(MissingBlockRange)
     end
@@ -350,6 +264,26 @@ defmodule Explorer.Chain.Import.Runner.BlocksTest do
         |> Repo.transaction()
 
       assert %{block_number: ^number, block_hash: ^hash} = Repo.one(PendingBlockOperation)
+    end
+  end
+
+  describe "lose_consensus/5" do
+    test "loses consensus only for consensus=true blocks" do
+      insert(:block, consensus: true, number: 0)
+      insert(:block, consensus: true, number: 1)
+      insert(:block, consensus: false, number: 2)
+
+      new_block0 = params_for(:block, miner_hash: insert(:address).hash, number: 0)
+      new_block1 = params_for(:block, miner_hash: insert(:address).hash, parent_hash: new_block0.hash, number: 1)
+
+      %Ecto.Changeset{valid?: true, changes: new_block1_changes} = Block.changeset(%Block{}, new_block1)
+
+      opts = %{
+        timeout: 60_000,
+        timestamps: %{updated_at: DateTime.utc_now()}
+      }
+
+      assert {:ok, [{0, _}, {1, _}]} = Blocks.lose_consensus(Repo, [], [1], [new_block1_changes], opts)
     end
   end
 
